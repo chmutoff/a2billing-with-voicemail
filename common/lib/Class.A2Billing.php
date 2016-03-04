@@ -190,7 +190,7 @@ class A2Billing
     public $G_startime;
 
     // Enable voicemail for this card. For DID and SIP/IAX call
-    public $voicemail = 0;
+    public $voicemail = 1;
 
     // Flag to know that we ask for an othercardnumber when for instance we doesnt have enough credit to make a call
     public $ask_other_cardnumber = 0;
@@ -1242,21 +1242,7 @@ class A2Billing
         }
 
         if ($this->voicemail) {
-
-            if (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION") || ($dialstatus == "NOANSWER")) {
-                // The following section will send the caller to VoiceMail
-                // with the unavailable priority.
-                $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL UNAVAILABLE - GOTO VOICEMAIL ($dest_username)");
-                $vm_parameters = $this->format_parameters($dest_username . '|u');
-                $agi->exec(VoiceMail, $vm_parameters);
-            }
-
-            if (($dialstatus == "BUSY")) {
-                // The following section will send the caller to VoiceMail with the busy priority.
-                $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL BUSY - GO VOICEMAIL ($dest_username)");
-                $vm_parameters = $this->format_parameters($dest_username . '|b');
-                $agi->exec(VoiceMail, $vm_parameters);
-            }
+            $this->goToVoicemail($dialstatus, $this->username, $agi);
         }
 
         return -1;
@@ -1347,7 +1333,9 @@ class A2Billing
                     if ($dialstatus == "BUSY") {
                         $answeredtime = 0;
                         if ($this->agiconfig['busy_timeout'] > 0)
-                            $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
+                            if (!$this->voicemail) { // Let the user go to mailbox if busy!
+                                $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
+                            }
                         $agi->stream_file('prepaid-isbusy', '#');
                         if (count($listdestination) > $callcount)
                             continue;
@@ -1454,14 +1442,7 @@ class A2Billing
         }// END FOR
 
         if ($this->voicemail) {
-            if (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION") || ($dialstatus == "NOANSWER") || ($dialstatus == "BUSY")) {
-                // The following section will send the caller to VoiceMail with the unavailable priority.\
-                $dest_username = $this->username;
-                $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL ($dialstatus) - GOTO VOICEMAIL ($dest_username)");
-
-                $vm_parameters = $this->format_parameters($dest_username . '|s');
-                $agi->exec(VoiceMail, $vm_parameters);
-            }
+            $this->goToVoicemail($dialstatus, $this->username, $agi);
         }
     }
 
@@ -1605,7 +1586,9 @@ class A2Billing
                 if ($dialstatus == "BUSY") {
                     $answeredtime = 0;
                     if ($this->agiconfig['busy_timeout'] > 0)
-                        $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
+                        if (!$this->voicemail) { // Let the user go to mailbox if busy!
+                            $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
+                        }
                     if (count($listdestination) > $callcount) {
                         continue;
                     } else {
@@ -1784,14 +1767,7 @@ class A2Billing
         }// END FOR
 
         if ($this->voicemail) {
-            if (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION") || ($dialstatus == "NOANSWER") || ($dialstatus == "BUSY")) {
-                // The following section will send the caller to VoiceMail with the unavailable priority.\
-                $dest_username = $new_username;
-                $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL ($dialstatus) - GOTO VOICEMAIL ($dest_username)");
-
-                $vm_parameters = $this->format_parameters($dest_username . '|s');
-                $agi->exec(VoiceMail, $vm_parameters);
-            }
+            $this->goToVoicemail($dialstatus, $this->username, $agi);
         }
         $this->accountcode = $accountcode;
         $this->username = $username;
@@ -3937,6 +3913,33 @@ class A2Billing
         }
 
         return $output;
+    }
+
+    public function goToVoicemail($dialstatus, $username, $agi)
+    {
+        $voicemail_dir = "/var/spool/asterisk/voicemail/*/{$this->username}/";
+
+        if (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION") || ($dialstatus == "NOANSWER")) {
+            // The following section will send the caller to VoiceMail with the unavailable priority.
+            $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL UNAVAILABLE - GOTO VOICEMAIL ($username)");
+            if (glob($voicemail_dir.'unavail.*') || glob($voicemail_dir.'temp.*')) {
+                $vm_parameters = $this->format_parameters($username . '|us');
+            } else {
+                $vm_parameters = $this->format_parameters($username);
+            }
+            $agi->exec(VoiceMail, $vm_parameters);
+        }
+
+        if (($dialstatus == "BUSY")) {
+            // The following section will send the caller to VoiceMail with the busy priority.
+            $this->debug(INFO, $agi, __FILE__, __LINE__, "[STATUS] CHANNEL BUSY - GO VOICEMAIL ($username)");
+            if (glob($voicemail_dir.'busy.*') || glob($voicemail_dir.'temp.*')) {
+                $vm_parameters = $this->format_parameters($username . '|bs');
+            } else {
+                $vm_parameters = $this->format_parameters($username);
+            }
+            $agi->exec(VoiceMail, $vm_parameters);
+        }
     }
 
 };

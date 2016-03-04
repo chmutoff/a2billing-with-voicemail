@@ -494,6 +494,7 @@ class FormBO
         self::create_sipiax_friends();
         self::creation_card_refill();
         self::create_lock_card();
+        self::add_voicemail_account();
     }
 
     public static function processing_card_del_agent()
@@ -1123,5 +1124,58 @@ class FormBO
         $FormHandler = FormHandler::GetInstance();
         $id_card = $FormHandler -> RESULT_QUERY;
         NotificationsDAO::AddNotification("added_new_signup",Notification::$MEDIUM,Notification::$CUST,$id_card,Notification::$LINK_CARD,$id_card);
+    }
+
+    public static function processing_card_del()
+    {
+        self::delete_voicemail_account();
+    }
+
+    /**
+     * Add 'mailbox' value to recently created voicemail account
+     */
+    public static function add_voicemail_mailbox()
+    {
+        $FormHandler = FormHandler::GetInstance();
+        $processed = $FormHandler->getProcessed();
+        $id_cc_card = $processed['id_cc_card'];
+        $id = $FormHandler -> RESULT_QUERY;
+        $table_cc_card = new Table('cc_card', 'username');
+        $card_clause = "id = ".$id_cc_card;
+        $card_result = $table_cc_card -> Get_list($FormHandler->DBHandle, $card_clause, 0);
+        $username = $card_result[0][0];
+        $table_voicemail = new  Table('cc_voicemail_users');
+        $param_update_mailbox = "mailbox = '$username'";
+        $clause_update_mailbox = " id='".$id."'";
+        $table_voicemail -> Update_table ($FormHandler->DBHandle, $param_update_mailbox, $clause_update_mailbox, $func_table = null);
+    }
+
+    /**
+     * Create new voicemail account for recently created card
+     */
+    public static function add_voicemail_account()
+    {
+        $FormHandler = FormHandler::GetInstance();
+        $processed = $FormHandler->getProcessed();
+        $id = $FormHandler -> RESULT_QUERY; // DEFINED BEFORE FG_ADDITIONAL_FUNCTION_AFTER_ADD
+        $username = $processed['username'];
+        $value = "'$id', '$username'";
+        $func_fields = "id_cc_card, mailbox";
+        $func_table = 'cc_voicemail_users';
+        $instance_table = new Table();
+        $inserted_id = $instance_table -> Add_table ($FormHandler->DBHandle, $value, $func_fields, $func_table, "");
+    }
+
+    /**
+     * Delete the voicemail account associated to the card
+     */
+    public static function delete_voicemail_account()
+    {
+        $FormHandler = FormHandler::GetInstance();
+        $processed = $FormHandler->getProcessed();
+        $card_id = $processed['id'];
+        $FG_TABLE_VOICEMAIL_USE_CLAUSE = "id_cc_card = '$card_id'";
+        $instance_voicemail_table = new Table("cc_voicemail_users");
+        $result_query = $instance_voicemail_table -> Delete_table ($FormHandler->DBHandle, $FG_TABLE_VOICEMAIL_USE_CLAUSE, null);
     }
 }
