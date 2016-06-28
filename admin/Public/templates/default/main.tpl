@@ -81,6 +81,7 @@
 				<li><a href="A2B_entity_speeddial.php?atmenu=speeddial&section=1">{php} echo gettext("Speed Dial");{/php}</a></li>
 				<li><a href="card-history.php?atmenu=cardhistory&section=1">{php} echo gettext("History");{/php}</a></li>
 				<li><a href="A2B_entity_statuslog.php?atmenu=statuslog&section=1">{php} echo gettext("Status");{/php}</a></li>
+				<li><a href="A2B_entity_voicemail.php?&section=1">{php} echo gettext("Voicemail");{/php}</a></li>
 		</ul></li>
 	</ul>
 	</div>
