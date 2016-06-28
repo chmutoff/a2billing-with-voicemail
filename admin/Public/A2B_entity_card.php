@@ -522,7 +522,7 @@ if (!$popup_select && $form_action == "ask-add") {
 <center>
 <table width="70%" align="center" cellpadding="2" cellspacing="0">
     <script language="javascript">
-    public function submitform()
+    function submitform()
     {
         document.cardform.submit();
     }
@@ -543,6 +543,10 @@ if (!$popup_select && $form_action == "ask-add") {
         </span>
         </td>
     </tr>
+    <?php if ($HD_Form->FG_CSRF_STATUS == true) : ?>
+        <INPUT type="hidden" name="<?= $HD_Form->FG_FORM_UNIQID_FIELD ?>" value="<?= $HD_Form->FG_FORM_UNIQID; ?>" />
+        <INPUT type="hidden" name="<?= $HD_Form->FG_CSRF_FIELD ?>" value="<?= $HD_Form->FG_CSRF_TOKEN; ?>" />
+    <?php endif ?>
     </form>
 </table>
 </center>
